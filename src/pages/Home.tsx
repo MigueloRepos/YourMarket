@@ -43,7 +43,30 @@ function SectionHeader({ title, actionText, actionLink }: { title: string, actio
 }
 
 export default function Home() {
-  const { trendingProducts, bestSellers, loading } = useProducts();
+  const { products, trendingProducts, bestSellers, loading } = useProducts();
+
+  const availableCategories = React.useMemo(() => {
+    const categoryCounts: Record<string, number> = {};
+    products.forEach(p => {
+      const cat = p.category || 'General';
+      categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
+    });
+
+    return Object.entries(categoryCounts).map(([cat, count], index) => {
+      const icons = ['Smartphone', 'Shirt', 'Sofa', 'Laptop'];
+      const bgColors = ['bg-blue-50', 'bg-indigo-50', 'bg-amber-50', 'bg-emerald-50'];
+      const textColors = ['text-blue-600', 'text-indigo-600', 'text-amber-600', 'text-emerald-600'];
+      
+      return {
+        id: cat,
+        name: cat,
+        count: `${count} Productos`,
+        icon: icons[index % icons.length],
+        bgColor: bgColors[index % bgColors.length],
+        iconColor: textColors[index % textColors.length]
+      };
+    });
+  }, [products]);
 
   return (
     <main>
@@ -52,25 +75,31 @@ export default function Home() {
       {/* Categorías Destacadas */}
       <section id="categorias" className="py-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <SectionHeader title="Categorías Destacadas" actionText="Ver todas las categorías" actionLink="/tienda" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {categories.map((category) => {
-            const Icon = IconMap[category.icon];
-            return (
-              <Link to={`/tienda?categoria=${category.name.toLowerCase()}`} key={category.id} className="group bg-slate-50 hover:bg-white border border-transparent hover:border-slate-200 rounded-2xl p-6 transition-all duration-300 cursor-pointer flex items-center justify-between shadow-sm hover:shadow-md">
-                <div className="flex items-center gap-4">
-                  <div className={`w-14 h-14 rounded-xl flex items-center justify-center ${category.bgColor} ${category.iconColor} group-hover:scale-110 transition-transform duration-300`}>
-                    <Icon className="w-7 h-7" />
+        {loading ? (
+          <div className="flex justify-center py-8"><div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>
+        ) : availableCategories.length === 0 ? (
+          <p className="text-center text-slate-500 py-8">No existen categorías disponibles aún.</p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {availableCategories.map((category) => {
+              const Icon = IconMap[category.icon] || Smartphone;
+              return (
+                <Link to={`/tienda?categoria=${category.name.toLowerCase()}`} key={category.id} className="group bg-slate-50 hover:bg-white border border-transparent hover:border-slate-200 rounded-2xl p-6 transition-all duration-300 cursor-pointer flex items-center justify-between shadow-sm hover:shadow-md">
+                  <div className="flex items-center gap-4">
+                    <div className={`w-14 h-14 rounded-xl flex items-center justify-center ${category.bgColor} ${category.iconColor} group-hover:scale-110 transition-transform duration-300`}>
+                      <Icon className="w-7 h-7" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-slate-900 text-lg">{category.name}</h3>
+                      <p className="text-sm text-slate-500">{category.count}</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-bold text-slate-900 text-lg">{category.name}</h3>
-                    <p className="text-sm text-slate-500">{category.count}</p>
-                  </div>
-                </div>
-                <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-slate-600 transition-colors" />
-              </Link>
-            );
-          })}
-        </div>
+                  <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-slate-600 transition-colors" />
+                </Link>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       {/* Productos en Tendencia */}

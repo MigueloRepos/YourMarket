@@ -13,7 +13,7 @@ export default function Navbar() {
         <div className="flex justify-between items-center h-20">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 cursor-pointer">
-            <img src="/logo_your_market.png" alt="MarketX Logo" className="h-10 w-auto object-contain md:h-12" />
+            <img src="/logo_your_market.png" alt="MarketX Logo" className="w-[300px] h-[200px] object-contain" />
           </Link>
 
           {/* Desktop Links */}
@@ -45,16 +45,16 @@ export default function Navbar() {
                   {user.user_metadata?.avatar_url ? (
                     <img src={user.user_metadata.avatar_url} alt={user.user_metadata.full_name || "Profile"} className="w-8 h-8 rounded-full border border-slate-200" />
                   ) : (
-                    <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs">{user.email?.charAt(0).toUpperCase()}</div>
+                    <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs">{((user as any).Usuario || user.email || 'U').charAt(0).toUpperCase()}</div>
                   )}
-                  <span className="text-sm font-bold text-slate-900">{user.user_metadata?.full_name?.split(' ')[0] || user.email?.split('@')[0]}</span>
+                  <span className="text-sm font-bold text-slate-900">{user.user_metadata?.full_name?.split(' ')[0] || (user as any).Usuario || user.email?.split('@')[0] || 'Usuario'}</span>
                 </Link>
               </div>
             ) : (
-              <button onClick={signInWithGoogle} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-full text-sm font-medium transition-all shadow-sm shadow-blue-200">
+              <Link to="/login" className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-full text-sm font-medium transition-all shadow-sm shadow-blue-200">
                 <User className="w-4 h-4" />
                 Iniciar sesión / Registro
-              </button>
+              </Link>
             )}
           </div>
 
@@ -83,9 +83,9 @@ export default function Navbar() {
                   <User className="w-5 h-5" /> Mi Cuenta
                 </Link>
               ) : (
-                <button onClick={() => { signInWithGoogle(); setIsOpen(false); }} className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3.5 rounded-xl font-bold transition-colors">
+                <Link to="/login" onClick={() => setIsOpen(false)} className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3.5 rounded-xl font-bold transition-colors">
                   <User className="w-5 h-5" /> Iniciar sesión / Registro
-                </button>
+                </Link>
               )}
             </div>
           </div>

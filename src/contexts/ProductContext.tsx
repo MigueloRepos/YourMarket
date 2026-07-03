@@ -28,7 +28,25 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
           throw error;
         }
 
-        setProducts(data || []);
+        const mappedProducts: Product[] = (data || []).map((p: any) => ({
+          id: p.id?.toString() || '',
+          name: p.Product_name || p.Nombre || p.name || 'Sin nombre',
+          price: typeof p.Precio === 'string' ? parseFloat(p.Precio) || 0 : (p.Precio || p.price || 0),
+          precioStr: p.Precio, // keep string for display if needed
+          originalPrice: p.originalPrice,
+          image: p.Product_url_images || p.Imagen || p.image || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=800&auto=format&fit=crop',
+          category: p.Categoria || p.category || 'General',
+          brand: p.Vendedor || p.Marca || p.brand || 'Genérico',
+          description: p.Product_descrip || p.Descripcion || p.description || 'Sin descripción',
+          rating: p.rating || 5,
+          reviews: p.reviews || 0,
+          vendedorPhone: p['No Telefono'] || p['No Tel'] || '',
+          dbId: p.id,
+          stock: p.Cantidad_dispon || 0,
+          sold: p.Cant_vendida || 0
+        }));
+
+        setProducts(mappedProducts);
       } catch (err: any) {
         console.error(err);
         setError(err.message);

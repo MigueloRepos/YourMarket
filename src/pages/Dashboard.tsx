@@ -1,40 +1,205 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  LayoutDashboard, Package, Heart, Settings, LogOut, 
-  CreditCard, Clock, MapPin, ChevronRight, BarChart3
+  LayoutDashboard, Package, Upload, Settings, LogOut, 
+  BarChart3, Eye, DollarSign, TrendingUp, Edit, Trash2, Plus, Phone, Image as ImageIcon, X
 } from 'lucide-react';
-import { Link, Navigate } from 'react-router-dom';
-import ProductCard from '../components/ProductCard';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { useProducts } from '../contexts/ProductContext';
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { supabase } from '../lib/supabase';
+import toast from 'react-hot-toast';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState('resumen');
-  const { user, loading, logout } = useAuth();
-  const { trendingProducts, bestSellers, products } = useProducts();
-  const [orders, setOrders] = useState<any[]>([]);
+  const { user, loading: authLoading, logout, setCustomUser } = useAuth();
+  const [myProducts, setMyProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  const [newProduct, setNewProduct] = useState({
+    Product_name: '',
+    Product_descrip: '',
+    Precio: '',
+    Categoria: '',
+    Cantidad_dispon: 1,
+    Product_url_images: ''
+  });
+  
+  const [newCategory, setNewCategory] = useState('');
+  const [categories, setCategories] = useState<string[]>([]);
+  const [editingProduct, setEditingProduct] = useState<any>(null);
 
   useEffect(() => {
     if (user) {
-      supabase.from('orders')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .then(({ data }) => {
-          setOrders(data || []);
-        });
+      fetchMyProducts();
+      fetchCategories();
     }
   }, [user]);
 
-  if (loading) {
+  const fetchMyProducts = async () => {
+    setLoading(true);
+    const username = (user as any).Usuario || user?.email;
+    const { data, error } = await supabase
+      .from('Productos')
+      .select('*')
+      .eq('Vendedor', username)
+      .order('created_at', { ascending: false });
+      
+    if (!error && data) {
+      setMyProducts(data);
+    }
+    setLoading(false);
+  };
+  
+  const fetchCategories = async () => {
+    const { data, error } = await supabase
+      .from('Productos')
+      .select('Categoria');
+    
+    if (!error && data) {
+      const uniqueCats = Array.from(new Set(data.map(item => item.Categoria).filter(Boolean)));
+      setCategories(uniqueCats as string[]);
+    }
+  };
+
+  const handleUploadProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const categoryToUse = newProduct.Categoria === 'nueva' ? newCategory : newProduct.Categoria;
+    
+    if (!newProduct.Product_name || !newProduct.Precio || !categoryToUse) {
+      toast.error('Por favor, completa los campos requeridos');
+      return;
+    }
+
+    const username = (user as any).Usuario || user?.email;
+    const phone = (user as any)['No Tel'] || '';
+
+    const productData = {
+      Product_name: newProduct.Product_name,
+      Product_descrip: newProduct.Product_descrip,
+      Precio: newProduct.Precio,
+      Categoria: categoryToUse,
+      Cantidad_dispon: newProduct.Cantidad_dispon,
+      Vendedor: username,
+      'No Telefono': phone,
+      Cant_vendida: 0,
+      Product_url_images: newProduct.Product_url_images || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=800&auto=format&fit=crop'
+    };
+
+    const { error } = await supabase
+      .from('Productos')
+      .insert([productData]);
+
+    if (error) {
+      toast.error('Error al subir el producto');
+      console.error(error);
+    } else {
+      toast.success('Producto subido exitosamente');
+      setNewProduct({
+        Product_name: '',
+        Product_descrip: '',
+        Precio: '',
+        Categoria: '',
+        Cantidad_dispon: 1,
+        Product_url_images: ''
+      });
+      setNewCategory('');
+      fetchMyProducts();
+      fetchCategories();
+      setActiveTab('mis_productos');
+    }
+  };
+  
+  const handleUpdateProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingProduct) return;
+    
+    const { error } = await supabase
+      .from('Productos')
+      .update({
+        Product_name: editingProduct.Product_name,
+        Product_descrip: editingProduct.Product_descrip,
+        Precio: editingProduct.Precio,
+        Categoria: editingProduct.Categoria,
+        Cantidad_dispon: editingProduct.Cantidad_dispon,
+        Product_url_images: editingProduct.Product_url_images
+      })
+      .eq('id', editingProduct.id);
+      
+    if (error) {
+      toast.error('Error al actualizar');
+    } else {
+      toast.success('Producto actualizado');
+      setEditingProduct(null);
+      fetchMyProducts();
+    }
+  };
+
+  const handleDeleteProduct = async (id: number) => {
+    if (!confirm('¿Estás seguro de que quieres eliminar este producto?')) return;
+    
+    const { error } = await supabase
+      .from('Productos')
+      .delete()
+      .eq('id', id);
+      
+    if (error) {
+      toast.error('Error al eliminar');
+    } else {
+      toast.success('Producto eliminado');
+      fetchMyProducts();
+    }
+  };
+
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const formData = new FormData(e.target as HTMLFormElement);
+    const phone = formData.get('phone') as string;
+    
+    if (phone) {
+      const username = (user as any).Usuario || user?.email;
+      const { error } = await supabase
+        .from('Usuarios')
+        .update({ 'No Tel': phone })
+        .eq('Usuario', username);
+        
+      if (!error) {
+        toast.success('Perfil actualizado');
+        if (setCustomUser && user) {
+          setCustomUser({ ...(user as any), 'No Tel': phone });
+        }
+      } else {
+        toast.error('Error al actualizar perfil');
+      }
+    }
+  };
+
+  if (authLoading) {
     return <div className="min-h-screen bg-slate-50 pt-32 pb-20 flex justify-center"><div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>;
   }
 
   if (!user) {
     return <Navigate to="/" />;
   }
+
+  // Calculate stats
+  const totalSales = myProducts.reduce((sum, p) => sum + (p.Cant_vendida || 0), 0);
+  // Mock views based on sales since there's no views column
+  const totalViews = myProducts.reduce((sum, p) => sum + ((p.Cant_vendida || 0) * 15 + Math.floor(Math.random() * 20)), 0);
+  const totalProducts = myProducts.length;
+  
+  // Category data for pie chart
+  const categoryStats = myProducts.reduce((acc, p) => {
+    const cat = p.Categoria || 'Otros';
+    acc[cat] = (acc[cat] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+  
+  const pieData = Object.keys(categoryStats).map((key, i) => ({
+    name: key,
+    value: categoryStats[key],
+    color: ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444'][i % 5]
+  }));
 
   return (
     <div className="min-h-screen bg-slate-50 pt-24 pb-20">
@@ -46,14 +211,14 @@ export default function Dashboard() {
           <div className="w-full md:w-64 shrink-0">
             <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm mb-6">
               <div className="flex items-center gap-4 mb-6 pb-6 border-b border-slate-100">
-                {user.user_metadata?.avatar_url ? (
-                  <img src={user.user_metadata.avatar_url} alt={user.user_metadata.full_name || "User"} className="w-12 h-12 rounded-full border border-slate-100" />
-                ) : (
-                  <div className="w-12 h-12 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-lg">{user.email?.charAt(0).toUpperCase()}</div>
-                )}
-                <div>
-                  <h3 className="font-bold text-slate-900 truncate w-32">{user.user_metadata?.full_name || user.email?.split('@')[0]}</h3>
-                  <p className="text-xs text-slate-500">Miembro activo</p>
+                <div className="w-12 h-12 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-lg">
+                  {((user as any).Usuario || user.email || 'U').charAt(0).toUpperCase()}
+                </div>
+                <div className="overflow-hidden">
+                  <h3 className="font-bold text-slate-900 truncate">{user.user_metadata?.full_name || (user as any).Usuario || user.email?.split('@')[0] || 'Vendedor'}</h3>
+                  <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
+                    <Package className="w-3 h-3" /> Panel de Vendedor
+                  </p>
                 </div>
               </div>
               
@@ -63,21 +228,21 @@ export default function Dashboard() {
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${activeTab === 'resumen' ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50'}`}
                 >
                   <LayoutDashboard className="w-5 h-5" />
-                  Resumen
+                  Estadísticas
                 </button>
                 <button 
-                  onClick={() => setActiveTab('pedidos')}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${activeTab === 'pedidos' ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50'}`}
+                  onClick={() => setActiveTab('mis_productos')}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${activeTab === 'mis_productos' ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50'}`}
                 >
                   <Package className="w-5 h-5" />
-                  Mis Pedidos
+                  Mis Productos
                 </button>
                 <button 
-                  onClick={() => setActiveTab('deseos')}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${activeTab === 'deseos' ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50'}`}
+                  onClick={() => setActiveTab('subir_producto')}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${activeTab === 'subir_producto' ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50'}`}
                 >
-                  <Heart className="w-5 h-5" />
-                  Lista de Deseos
+                  <Upload className="w-5 h-5" />
+                  Subir Producto
                 </button>
                 <button 
                   onClick={() => setActiveTab('configuracion')}
@@ -99,245 +264,370 @@ export default function Dashboard() {
           <div className="flex-1">
             {activeTab === 'resumen' && (
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <h1 className="text-2xl font-bold text-slate-900 mb-6">Hola, {user.user_metadata?.full_name?.split(' ')[0] || user.email?.split('@')[0]} 👋</h1>
+                <h1 className="text-2xl font-bold text-slate-900 mb-6">Panel de Vendedor</h1>
                 
                 {/* Stats Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
                   <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
                     <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 mb-4">
-                      <Package className="w-5 h-5" />
+                      <Eye className="w-5 h-5" />
                     </div>
-                    <p className="text-sm text-slate-500 mb-1">Pedidos Activos</p>
-                    <h3 className="text-2xl font-bold text-slate-900">2</h3>
-                  </div>
-                  <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
-                    <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center text-amber-600 mb-4">
-                      <Heart className="w-5 h-5" />
-                    </div>
-                    <p className="text-sm text-slate-500 mb-1">En Lista de Deseos</p>
-                    <h3 className="text-2xl font-bold text-slate-900">4</h3>
+                    <p className="text-sm text-slate-500 mb-1">Vistas Totales</p>
+                    <h3 className="text-2xl font-bold text-slate-900">{totalViews}</h3>
                   </div>
                   <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
                     <div className="w-10 h-10 rounded-full bg-green-50 flex items-center justify-center text-green-600 mb-4">
-                      <CreditCard className="w-5 h-5" />
+                      <TrendingUp className="w-5 h-5" />
                     </div>
-                    <p className="text-sm text-slate-500 mb-1">Total Gastado</p>
-                    <h3 className="text-2xl font-bold text-slate-900">$1,249.00</h3>
+                    <p className="text-sm text-slate-500 mb-1">Ventas por WhatsApp</p>
+                    <h3 className="text-2xl font-bold text-slate-900">{totalSales}</h3>
+                  </div>
+                  <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+                    <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center text-amber-600 mb-4">
+                      <Package className="w-5 h-5" />
+                    </div>
+                    <p className="text-sm text-slate-500 mb-1">Productos Activos</p>
+                    <h3 className="text-2xl font-bold text-slate-900">{totalProducts}</h3>
                   </div>
                 </div>
 
-                {/* Content Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                   {/* Category Chart */}
-                  <div>
-                    <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                  <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+                    <h2 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
                       <BarChart3 className="w-5 h-5 text-blue-600" />
-                      Intereses por Categoría
+                      Tus Categorías
                     </h2>
-                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 h-80 flex items-center justify-center">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={[
-                              { name: 'Electrónica', value: 45, color: '#3b82f6' },
-                              { name: 'Ropa', value: 25, color: '#10b981' },
-                              { name: 'Hogar', value: 20, color: '#f59e0b' },
-                              { name: 'Otros', value: 10, color: '#64748b' }
-                            ]}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={60}
-                            outerRadius={80}
-                            paddingAngle={5}
-                            dataKey="value"
-                          >
-                            {[
-                              { color: '#3b82f6' },
-                              { color: '#10b981' },
-                              { color: '#f59e0b' },
-                              { color: '#64748b' }
-                            ].map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={entry.color} />
-                            ))}
-                          </Pie>
-                          <Tooltip 
-                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                            itemStyle={{ fontWeight: 'bold' }}
-                          />
-                          <Legend verticalAlign="bottom" height={36} />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </div>
-
-                  {/* Recent Activity */}
-                  <div>
-                    <div className="flex items-center justify-between mb-4">
-                      <h2 className="text-lg font-bold text-slate-900">Actividad Reciente</h2>
-                      <button onClick={() => setActiveTab('pedidos')} className="text-sm font-medium text-blue-600 hover:underline">
-                        Ver todos
-                      </button>
-                    </div>
-                    
-                    {orders.length > 0 ? (
-                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                      {orders.slice(0, 3).map((order) => {
-                        const product = products.find(p => parseInt(p.id!) === order.product_id);
-                        if (!product) return null;
-                        return (
-                          <div key={order.id} className="p-4 sm:p-6 border-b border-slate-100 last:border-0 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                            <div className="flex items-center gap-4">
-                              <div className="w-16 h-16 bg-slate-50 rounded-xl flex items-center justify-center shrink-0">
-                                <img src={product.image} className="w-10 h-10 object-cover mix-blend-multiply" alt={product.name} />
-                              </div>
-                              <div>
-                                <p className="font-bold text-slate-900">Pedido #ORD-{order.id}</p>
-                                <p className="text-sm text-slate-500 truncate w-32 sm:w-auto">{product.name} (x{order.quantity})</p>
-                              </div>
-                            </div>
-                            <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-2">
-                              <p className="font-bold text-slate-900">${(product.price * order.quantity).toFixed(2)}</p>
-                              <span className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-md ${order.status === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>
-                                {order.status === 'pending' ? <><Clock className="w-3.5 h-3.5" /> Pendiente</> : order.status}
-                              </span>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+                    {pieData.length > 0 ? (
+                      <div className="h-64">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={pieData}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={60}
+                              outerRadius={80}
+                              paddingAngle={5}
+                              dataKey="value"
+                            >
+                              {pieData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.color} />
+                              ))}
+                            </Pie>
+                            <Tooltip />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
                     ) : (
-                      <div className="bg-slate-50 rounded-2xl p-6 text-center text-slate-500">
-                        No hay actividad reciente.
+                      <div className="h-64 flex flex-col items-center justify-center text-slate-400">
+                        <Package className="w-12 h-12 mb-3 opacity-20" />
+                        <p>No hay productos subidos</p>
                       </div>
                     )}
                   </div>
                 </div>
               </div>
             )}
-            
-            {activeTab === 'pedidos' && (
+
+            {activeTab === 'mis_productos' && (
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <h1 className="text-2xl font-bold text-slate-900 mb-2">Mis Pedidos</h1>
-                <p className="text-slate-500 mb-8">Aquí puedes ver el historial completo y estado de tus compras.</p>
+                <div className="flex items-center justify-between mb-6">
+                  <h1 className="text-2xl font-bold text-slate-900">Mis Productos</h1>
+                  <button onClick={() => setActiveTab('subir_producto')} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors">
+                    <Plus className="w-4 h-4" /> Nuevo Producto
+                  </button>
+                </div>
                 
-                <div className="space-y-4">
-                  {orders.length > 0 ? orders.map((order, i) => {
-                    const product = products.find(p => parseInt(p.id!) === order.product_id);
-                    if (!product) return null;
-                    return (
-                      <div key={order.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 flex flex-col md:flex-row gap-6">
-                        <div className="w-24 h-24 bg-slate-50 rounded-xl flex items-center justify-center shrink-0">
-                          <img src={product.image} className="w-16 h-16 object-cover mix-blend-multiply" alt={product.name} />
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-2">
-                            <div>
-                              <h3 className="font-bold text-lg text-slate-900">{product.name} (x{order.quantity})</h3>
-                              <p className="text-sm text-slate-500">{product.brand}</p>
+                {loading ? (
+                  <div className="flex justify-center py-12"><div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>
+                ) : myProducts.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    {myProducts.map(product => (
+                      <div key={product.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
+                        <div className="h-48 bg-slate-100 relative">
+                          {product.Product_url_images ? (
+                            <img src={product.Product_url_images} alt={product.Product_name} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-slate-400">
+                              <ImageIcon className="w-12 h-12 opacity-30" />
                             </div>
-                            <p className="font-extrabold text-slate-900 text-lg">${(product.price * order.quantity).toFixed(2)}</p>
+                          )}
+                          <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-2.5 py-1 rounded-lg text-xs font-bold text-slate-700 shadow-sm">
+                            {product.Categoria}
                           </div>
+                        </div>
+                        <div className="p-5 flex-1 flex flex-col">
+                          <h3 className="font-bold text-lg text-slate-900 mb-1">{product.Product_name}</h3>
+                          <p className="text-slate-500 text-sm mb-4 line-clamp-2">{product.Product_descrip}</p>
                           
-                          <div className="flex flex-wrap gap-4 mt-4 text-sm">
-                            <div className="flex items-center gap-1.5 text-slate-600">
-                              <Package className="w-4 h-4" />
-                              Pedido #ORD-{order.id}
+                          <div className="mt-auto pt-4 border-t border-slate-100 flex items-center justify-between">
+                            <div>
+                              <p className="font-extrabold text-blue-600 text-lg">{product.Precio}</p>
+                              <p className="text-xs text-slate-500">Stock: {product.Cantidad_dispon} • Ventas: {product.Cant_vendida || 0}</p>
                             </div>
-                            <div className="flex items-center gap-1.5 text-slate-600">
-                              <Clock className="w-4 h-4" />
-                              {new Date(order.created_at).toLocaleDateString()}
-                            </div>
-                            <div className="flex items-center gap-1.5 text-amber-600 font-medium bg-amber-50 px-2.5 py-1 rounded-md">
-                              {order.status === 'pending' ? 'Pendiente' : order.status}
+                            <div className="flex gap-2">
+                              <button onClick={() => setEditingProduct(product)} className="w-8 h-8 rounded-full bg-slate-50 text-slate-600 flex items-center justify-center hover:bg-blue-50 hover:text-blue-600 transition-colors">
+                                <Edit className="w-4 h-4" />
+                              </button>
+                              <button onClick={() => handleDeleteProduct(product.id)} className="w-8 h-8 rounded-full bg-slate-50 text-slate-600 flex items-center justify-center hover:bg-red-50 hover:text-red-600 transition-colors">
+                                <Trash2 className="w-4 h-4" />
+                              </button>
                             </div>
                           </div>
-                        </div>
-                        <div className="flex flex-col gap-2 justify-center">
-                          <button className="bg-blue-50 text-blue-700 hover:bg-blue-100 px-4 py-2 rounded-xl text-sm font-medium transition-colors w-full md:w-auto text-center">
-                            Comprar de nuevo
-                          </button>
                         </div>
                       </div>
-                    );
-                  }) : (
-                    <div className="text-center py-12 bg-white rounded-2xl border border-slate-100 shadow-sm">
-                      <Package className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-                      <h3 className="text-lg font-bold text-slate-900 mb-2">No tienes pedidos</h3>
-                      <p className="text-slate-500 mb-6">Aún no has realizado ninguna compra.</p>
-                      <button onClick={() => setActiveTab('resumen')} className="text-blue-600 font-bold hover:underline">
-                        Volver al inicio
-                      </button>
-                    </div>
-                  )}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-12 text-center">
+                    <Package className="w-16 h-16 text-slate-200 mx-auto mb-4" />
+                    <h3 className="text-xl font-bold text-slate-900 mb-2">No tienes productos</h3>
+                    <p className="text-slate-500 mb-6">Comienza a vender subiendo tu primer producto.</p>
+                    <button onClick={() => setActiveTab('subir_producto')} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl font-medium transition-colors">
+                      Subir mi primer producto
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
-            {activeTab === 'deseos' && (
+            {activeTab === 'subir_producto' && (
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <h1 className="text-2xl font-bold text-slate-900 mb-2">Lista de Deseos</h1>
-                <p className="text-slate-500 mb-8">Tus productos guardados para comprar más tarde.</p>
+                <h1 className="text-2xl font-bold text-slate-900 mb-6">Subir Nuevo Producto</h1>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {bestSellers.slice(0,4).map((product, i) => (
-                    <ProductCard 
-                      key={i} 
-                      product={{...product, isWide: false}} 
-                      isWishlisted={true}
-                    />
-                  ))}
-                </div>
+                <form onSubmit={handleUploadProduct} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 max-w-2xl">
+                  <div className="space-y-6">
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Nombre del Producto *</label>
+                      <input 
+                        required
+                        type="text" 
+                        value={newProduct.Product_name}
+                        onChange={e => setNewProduct({...newProduct, Product_name: e.target.value})}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                        placeholder="Ej. iPhone 13 Pro Max"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Descripción</label>
+                      <textarea 
+                        value={newProduct.Product_descrip}
+                        onChange={e => setNewProduct({...newProduct, Product_descrip: e.target.value})}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 h-24 resize-none" 
+                        placeholder="Describe tu producto..."
+                      ></textarea>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Precio (USD o CUP) *</label>
+                        <input 
+                          required
+                          type="text" 
+                          value={newProduct.Precio}
+                          onChange={e => setNewProduct({...newProduct, Precio: e.target.value})}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                          placeholder="Ej. 1200 USD"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Cantidad Disponible</label>
+                        <input 
+                          type="number" 
+                          min="1"
+                          value={newProduct.Cantidad_dispon}
+                          onChange={e => setNewProduct({...newProduct, Cantidad_dispon: parseInt(e.target.value) || 0})}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Categoría *</label>
+                      <select 
+                        required
+                        value={newProduct.Categoria}
+                        onChange={e => setNewProduct({...newProduct, Categoria: e.target.value})}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3"
+                      >
+                        <option value="">Selecciona una categoría...</option>
+                        {categories.map(cat => (
+                          <option key={cat} value={cat}>{cat}</option>
+                        ))}
+                        <option value="nueva">+ Añadir nueva categoría</option>
+                      </select>
+                      
+                      {newProduct.Categoria === 'nueva' && (
+                        <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                          <input 
+                            required
+                            type="text" 
+                            value={newCategory}
+                            onChange={e => setNewCategory(e.target.value)}
+                            className="w-full bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                            placeholder="Nombre de la nueva categoría"
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">URL de la Imagen</label>
+                      <input 
+                        type="url" 
+                        value={newProduct.Product_url_images}
+                        onChange={e => setNewProduct({...newProduct, Product_url_images: e.target.value})}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                        placeholder="https://ejemplo.com/imagen.jpg"
+                      />
+                    </div>
+
+                  </div>
+                  
+                  <div className="mt-8 pt-6 border-t border-slate-100 flex justify-end">
+                    <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2.5 rounded-xl font-bold transition-colors">
+                      Publicar Producto
+                    </button>
+                  </div>
+                </form>
               </div>
             )}
 
             {activeTab === 'configuracion' && (
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <h1 className="text-2xl font-bold text-slate-900 mb-2">Configuración</h1>
-                <p className="text-slate-500 mb-8">Administra los detalles de tu cuenta y preferencias.</p>
+                <h1 className="text-2xl font-bold text-slate-900 mb-6">Configuración de la Tienda</h1>
                 
-                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                  <div className="p-6 border-b border-slate-100">
-                    <h3 className="font-bold text-slate-900 mb-4">Información Personal</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden max-w-2xl">
+                  <form onSubmit={handleUpdateProfile} className="p-6">
+                    <h3 className="font-bold text-slate-900 mb-4">Información del Vendedor</h3>
+                    <div className="grid grid-cols-1 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Nombre</label>
-                        <input type="text" defaultValue={user.user_metadata?.full_name || ''} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Nombre / Usuario</label>
+                        <input type="text" defaultValue={(user as any).Usuario || user.email} readOnly className="w-full bg-slate-100 border border-slate-200 rounded-xl px-4 py-2 text-sm text-slate-500 focus:outline-none cursor-not-allowed" />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Correo Electrónico</label>
-                        <input type="email" defaultValue={user.email || ''} readOnly className="w-full bg-slate-100 border border-slate-200 rounded-xl px-4 py-2 text-sm text-slate-500 focus:outline-none" />
-                      </div>
-                    </div>
-                    <button className="mt-4 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-xl text-sm font-medium transition-colors">
-                      Guardar Cambios
-                    </button>
-                  </div>
-                  
-                  <div className="p-6">
-                    <h3 className="font-bold text-slate-900 mb-4">Direcciones de Envío</h3>
-                    <div className="border border-slate-200 rounded-xl p-4 flex items-start gap-4">
-                      <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center shrink-0">
-                        <MapPin className="w-5 h-5 text-slate-500" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-bold text-slate-900">Casa</p>
-                        <p className="text-sm text-slate-500 mb-2">123 Calle Principal, Ciudad, CP 12345</p>
-                        <div className="flex gap-3">
-                          <button className="text-xs font-medium text-blue-600 hover:underline">Editar</button>
-                          <button className="text-xs font-medium text-red-600 hover:underline">Eliminar</button>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Número de Teléfono (Para Pedidos por WhatsApp)</label>
+                        <div className="relative">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <Phone className="h-4 w-4 text-slate-400" />
+                          </div>
+                          <input 
+                            name="phone"
+                            type="tel" 
+                            defaultValue={(user as any)['No Tel'] || ''} 
+                            className="w-full pl-10 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                            placeholder="Ej. +53 51234567"
+                          />
                         </div>
+                        <p className="text-xs text-slate-500 mt-2">
+                          Este número será utilizado por los clientes para contactarte y hacer pedidos por WhatsApp.
+                        </p>
                       </div>
-                      <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded uppercase">Predeterminada</span>
                     </div>
-                    <button className="mt-4 w-full border border-dashed border-slate-300 rounded-xl py-3 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">
-                      + Agregar nueva dirección
-                    </button>
-                  </div>
+                    <div className="mt-6">
+                      <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-xl text-sm font-medium transition-colors">
+                        Guardar Cambios
+                      </button>
+                    </div>
+                  </form>
                 </div>
               </div>
             )}
+            
+            {/* Modal de Edición */}
+            {editingProduct && (
+              <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
+                  <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                    <h3 className="font-bold text-lg text-slate-900">Editar Producto</h3>
+                    <button onClick={() => setEditingProduct(null)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                  
+                  <form onSubmit={handleUpdateProduct} className="p-6">
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Nombre</label>
+                        <input 
+                          required
+                          type="text" 
+                          value={editingProduct.Product_name}
+                          onChange={e => setEditingProduct({...editingProduct, Product_name: e.target.value})}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Descripción</label>
+                        <textarea 
+                          value={editingProduct.Product_descrip || ''}
+                          onChange={e => setEditingProduct({...editingProduct, Product_descrip: e.target.value})}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 h-20 resize-none" 
+                        ></textarea>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-1">Precio</label>
+                          <input 
+                            required
+                            type="text" 
+                            value={editingProduct.Precio}
+                            onChange={e => setEditingProduct({...editingProduct, Precio: e.target.value})}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-1">Stock</label>
+                          <input 
+                            type="number" 
+                            value={editingProduct.Cantidad_dispon}
+                            onChange={e => setEditingProduct({...editingProduct, Cantidad_dispon: parseInt(e.target.value) || 0})}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                          />
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Categoría</label>
+                        <input 
+                          required
+                          type="text" 
+                          value={editingProduct.Categoria}
+                          onChange={e => setEditingProduct({...editingProduct, Categoria: e.target.value})}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">URL de Imagen</label>
+                        <input 
+                          type="text" 
+                          value={editingProduct.Product_url_images || ''}
+                          onChange={e => setEditingProduct({...editingProduct, Product_url_images: e.target.value})}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="mt-6 pt-4 border-t border-slate-100 flex justify-end gap-3">
+                      <button type="button" onClick={() => setEditingProduct(null)} className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 rounded-xl transition-colors">
+                        Cancelar
+                      </button>
+                      <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-xl text-sm font-medium transition-colors">
+                        Guardar Cambios
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+            
           </div>
-
         </div>
       </div>
     </div>

@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import ProductCard from '../components/ProductCard';
 import ProductModal from '../components/ProductModal';
 import SkeletonProductCard from '../components/SkeletonProductCard';
-import { categories } from '../data';
 import { Product } from '../types';
 import { Filter, SlidersHorizontal, Search } from 'lucide-react';
 import { useProducts } from '../contexts/ProductContext';
@@ -38,17 +38,11 @@ export default function Store() {
   // Sort by most sold (using reviews as a proxy for sales)
   const sortedProducts = [...allProducts].sort((a, b) => b.reviews - a.reviews);
 
-  // Group by category
-  const categorizeProduct = (product: Product) => {
-    if (['Apple', 'Samsung', 'Sony'].includes(product.brand) && !product.name.includes('Watch') && !product.name.includes('AirPods')) return 'Tecnología';
-    if (product.name.includes('AirPods') || product.name.includes('Watch')) return 'Electrónica';
-    if (product.name.includes('Nike')) return 'Moda';
-    if (product.name.includes('Lámpara')) return 'Hogar';
-    return 'Tecnología';
-  };
+  // Extract unique categories from actual products
+  const realCategories = Array.from(new Set(allProducts.map(p => p.category).filter(Boolean))) as string[];
 
   const filteredProducts = sortedProducts.filter(p => {
-    const matchesCategory = activeCategory === 'Todas' || categorizeProduct(p) === activeCategory;
+    const matchesCategory = activeCategory === 'Todas' || p.category === activeCategory;
     const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.brand.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesPrice = p.price <= maxPrice;
     return matchesCategory && matchesSearch && matchesPrice;
@@ -116,13 +110,13 @@ export default function Store() {
                   >
                     Todas
                   </button>
-                  {categories.map((cat) => (
+                  {realCategories.map((cat) => (
                     <button 
-                      key={cat.id}
-                      onClick={() => setActiveCategory(cat.name)}
-                      className={`text-left text-sm px-3 py-2 rounded-lg transition-colors ${activeCategory === cat.name ? 'bg-blue-50 text-blue-700 font-medium' : 'text-slate-600 hover:bg-slate-50'}`}
+                      key={cat}
+                      onClick={() => setActiveCategory(cat)}
+                      className={`text-left text-sm px-3 py-2 rounded-lg transition-colors ${activeCategory === cat ? 'bg-blue-50 text-blue-700 font-medium' : 'text-slate-600 hover:bg-slate-50'}`}
                     >
-                      {cat.name}
+                      {cat}
                     </button>
                   ))}
                 </div>
@@ -166,32 +160,50 @@ export default function Store() {
                 >
                   Todas
                 </button>
-                {categories.map((cat) => (
+                {realCategories.map((cat) => (
                   <button 
-                    key={cat.id}
-                    onClick={() => setActiveCategory(cat.name)}
+                    key={cat}
+                    onClick={() => setActiveCategory(cat)}
                     className={`px-5 py-2.5 rounded-full text-sm font-bold whitespace-nowrap transition-colors ${
-                      activeCategory === cat.name 
+                      activeCategory === cat 
                         ? 'bg-blue-600 text-white shadow-md shadow-blue-200' 
                         : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
                     }`}
                   >
-                    {cat.name}
+                    {cat}
                   </button>
                 ))}
               </div>
             )}
 
             {/* Products Grid */}
-            <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 ${showFilters ? 'lg:grid-cols-3 xl:grid-cols-4' : 'lg:grid-cols-4 xl:grid-cols-5'} gap-6`}>
+            <motion.div layout className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 ${showFilters ? 'lg:grid-cols-3 xl:grid-cols-4' : 'lg:grid-cols-4 xl:grid-cols-5'} gap-6`}>
+              <AnimatePresence mode="popLayout">
               {loading ? (
                 // Skeletons
                 Array.from({ length: 10 }).map((_, idx) => (
-                  <SkeletonProductCard key={`skeleton-${idx}`} />
+                  <motion.div
+                    key={`skeleton-${idx}`}
+                    layout
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <SkeletonProductCard />
+                  </motion.div>
                 ))
               ) : filteredProducts.length > 0 ? (
                 filteredProducts.map((product, index) => (
-                  <div key={`${product.id}-${index}`} className="relative">
+                  <motion.div 
+                    layout
+                    initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                    transition={{ duration: 0.2, delay: Math.min(index * 0.03, 0.3) }}
+                    key={product.id} 
+                    className="relative"
+                  >
                     {/* Add ranking badge for top 3 */}
                     {index < 3 && activeCategory === 'Todas' && !searchQuery && maxPrice === 2000 && (
                       <div className="absolute -top-3 -left-3 w-8 h-8 bg-amber-400 text-amber-900 rounded-full flex items-center justify-center font-bold z-20 shadow-lg border-2 border-white">
@@ -204,15 +216,23 @@ export default function Store() {
                       isWishlisted={!!wishlist[product.id]}
                       onToggleWishlist={(e) => toggleWishlist(e, product)}
                     />
-                  </div>
+                  </motion.div>
                 ))
               ) : (
-                <div className="col-span-full text-center py-20 bg-white rounded-2xl border border-slate-100">
+                <motion.div 
+                  key="no-products"
+                  layout
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  className="col-span-full text-center py-20 bg-white rounded-2xl border border-slate-100"
+                >
                   <h3 className="text-xl font-bold text-slate-900 mb-2">No hay productos</h3>
                   <p className="text-slate-500">Intenta ajustar los filtros o el término de búsqueda.</p>
-                </div>
+                </motion.div>
               )}
-            </div>
+              </AnimatePresence>
+            </motion.div>
           </div>
         </div>
 

@@ -5,6 +5,7 @@ import BottomNav from './components/BottomNav';
 import Home from './pages/Home';
 import Store from './pages/Store';
 import Dashboard from './pages/Dashboard';
+import Login from './pages/Login';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { ProductProvider } from './contexts/ProductContext';
@@ -24,6 +25,7 @@ export default function App() {
               <Route path="/" element={<Home />} />
               <Route path="/tienda" element={<Store />} />
               <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/login" element={<Login />} />
             </Routes>
 
             <div id="contacto">

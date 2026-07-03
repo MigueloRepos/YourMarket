@@ -90,17 +90,27 @@ export default function ProductModal({ product, isOpen, onClose, isWishlisted, o
           status: 'pending'
         });
       }
+
+      if (product.dbId) {
+        // Fetch current sold amount
+        const { data: pData } = await supabase.from('Productos').select('Cant_vendida').eq('id', product.dbId).single();
+        const currentVendida = pData?.Cant_vendida || 0;
+        
+        // Increment Cant_vendida
+        await supabase.from('Productos').update({
+          Cant_vendida: currentVendida + quantity
+        }).eq('id', product.dbId);
+      }
       
       toast.success('¡Pedido iniciado con éxito!');
       
-      const phoneNumber = "1234567890"; // Reemplazar con el número real de WhatsApp
+      const phoneNumber = product.vendedorPhone || "1234567890";
       const message = `¡Hola! Me gustaría hacer un pedido:
       
 🛍️ *Producto:* ${product.name}
 🖼️ *Imagen:* ${window.location.origin}${product.image}
-💵 *Precio:* $${product.price}
+💵 *Precio:* ${product.precioStr || `$${product.price}`}
 🔢 *Cantidad:* ${quantity}
-💰 *Total:* $${(product.price * quantity).toFixed(2)}
 
 👤 *Cliente:* ${clientName}
 📍 *Dirección:* ${address}`;

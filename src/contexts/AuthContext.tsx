@@ -1,36 +1,61 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { User, Session } from '@supabase/supabase-js';
+import { User as SupabaseUser, Session } from '@supabase/supabase-js';
+
+// Extend the Auth context to support our custom user from the 'Usuarios' table
+type CustomUser = {
+  id: string;
+  Usuario: string;
+  [key: string]: any;
+};
 
 interface AuthContextType {
-  user: User | null;
+  user: SupabaseUser | CustomUser | null;
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
+  setCustomUser: (user: CustomUser) => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<SupabaseUser | CustomUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    const customUserStr = localStorage.getItem('custom_user');
+    if (customUserStr) {
+      try {
+        setUser(JSON.parse(customUserStr));
+        setLoading(false);
+      } catch (e) {
+        console.error('Error parsing custom user');
+      }
+    } else {
+      // Get initial session
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        setUser(session?.user ?? null);
+        setLoading(false);
+      });
+    }
 
     // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+      if (!localStorage.getItem('custom_user')) {
+        setUser(session?.user ?? null);
+      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
+
+  const setCustomUser = (user: CustomUser) => {
+    localStorage.setItem('custom_user', JSON.stringify(user));
+    setUser(user);
+  };
 
   const signInWithGoogle = async () => {
     try {
@@ -48,6 +73,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
+      localStorage.removeItem('custom_user');
+      setUser(null);
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
     } catch (error) {
@@ -56,7 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signInWithGoogle, logout }}>
+    <AuthContext.Provider value={{ user, loading, signInWithGoogle, logout, setCustomUser }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,9 +1,11 @@
 export interface Product {
   id: string;
+  dbId?: number;
   code?: string;
   name: string;
   brand: string;
   price: number;
+  precioStr?: string;
   oldPrice?: number;
   rating: number;
   reviews: number;
@@ -12,6 +14,10 @@ export interface Product {
   isWide?: boolean;
   badge?: string;
   category?: string;
+  description?: string;
+  vendedorPhone?: string;
+  stock?: number;
+  sold?: number;
 }
 
 export interface Category {
