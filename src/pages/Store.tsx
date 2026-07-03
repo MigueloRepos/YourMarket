@@ -43,7 +43,10 @@ export default function Store() {
 
   const filteredProducts = sortedProducts.filter(p => {
     const matchesCategory = activeCategory === 'Todas' || p.category === activeCategory;
-    const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.brand.toLowerCase().includes(searchQuery.toLowerCase());
+    const searchLower = searchQuery.toLowerCase();
+    const matchesSearch = p.name.toLowerCase().includes(searchLower) || 
+                          p.brand.toLowerCase().includes(searchLower) ||
+                          (p.description && p.description.toLowerCase().includes(searchLower));
     const matchesPrice = p.price <= maxPrice;
     return matchesCategory && matchesSearch && matchesPrice;
   });

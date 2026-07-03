@@ -36,8 +36,19 @@ export default function ProductModal({ product, isOpen, onClose, isWishlisted, o
         .eq('product_id', parseInt(product.id))
         .order('created_at', { ascending: false })
         .then(({ data }) => setReviews(data || []));
+
+      // Increment Cant_vistas
+      if (product.dbId) {
+        supabase.from('Productos').select('Cant_vistas').eq('id', product.dbId).single()
+          .then(({ data }) => {
+            const currentVistas = data?.Cant_vistas || 0;
+            supabase.from('Productos').update({
+              Cant_vistas: currentVistas + 1
+            }).eq('id', product.dbId).then();
+          });
+      }
     }
-  }, [product?.id, isOpen]);
+  }, [product?.id, isOpen, product?.dbId]);
 
   const submitReview = async () => {
     if (!user) {
@@ -223,9 +234,19 @@ export default function ProductModal({ product, isOpen, onClose, isWishlisted, o
             </div>
 
             <div className="flex gap-4 mb-6 mt-auto">
-              <button onClick={handleWhatsAppOrder} className="flex-1 bg-green-600 hover:bg-green-700 text-white px-8 py-4 rounded-xl font-bold transition-all shadow-lg shadow-green-200 flex items-center justify-center gap-2 text-lg">
-                <MessageCircle className="w-6 h-6 fill-white" />
-                Pedir por WhatsApp
+              <button 
+                onClick={handleWhatsAppOrder} 
+                disabled={product.stock === 0}
+                className={`flex-1 px-8 py-4 rounded-xl font-bold transition-all flex items-center justify-center gap-2 text-lg ${product.stock === 0 ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-200'}`}
+              >
+                {product.stock === 0 ? (
+                  <>Agotado</>
+                ) : (
+                  <>
+                    <MessageCircle className="w-6 h-6 fill-white" />
+                    Pedir por WhatsApp
+                  </>
+                )}
               </button>
             </div>
 

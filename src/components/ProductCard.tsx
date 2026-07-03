@@ -1,6 +1,6 @@
 import React from 'react';
 import { Product } from '../types';
-import { Heart, MessageCircle, Star, Package, TrendingUp } from 'lucide-react';
+import { Heart, MessageCircle, Star, Package, TrendingUp, Eye } from 'lucide-react';
 
 interface ProductCardProps {
   key?: string | number;
@@ -46,10 +46,19 @@ export default function ProductCard({ product, onClick, isWishlisted, onToggleWi
         <img 
           src={product.image} 
           alt={product.name} 
-          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
+          className={`w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out ${product.stock === 0 ? 'grayscale opacity-80' : ''}`}
         />
-        {product.discount && (
-          <div className="absolute bottom-3 right-3 bg-blue-100/90 backdrop-blur-md text-blue-700 text-xs font-bold px-3 py-1.5 rounded-full border border-blue-200/50 shadow-sm">
+        
+        {product.stock === 0 && (
+          <div className="absolute inset-0 bg-slate-900/10 backdrop-blur-[2px] flex items-center justify-center z-10">
+            <span className="bg-red-600 text-white font-black uppercase tracking-widest text-sm px-4 py-2 rounded-lg shadow-xl transform -rotate-12 border-2 border-red-400">
+              Agotado
+            </span>
+          </div>
+        )}
+
+        {product.discount && product.stock !== 0 && (
+          <div className="absolute bottom-3 right-3 bg-blue-100/90 backdrop-blur-md text-blue-700 text-xs font-bold px-3 py-1.5 rounded-full border border-blue-200/50 shadow-sm z-10">
             {product.discount}
           </div>
         )}
@@ -60,25 +69,45 @@ export default function ProductCard({ product, onClick, isWishlisted, onToggleWi
         <h3 className="font-extrabold text-slate-900 text-lg mb-1 line-clamp-1">{product.name}</h3>
         
         <p className="text-xs text-slate-500 mb-2 font-medium flex justify-between items-center">
-          <span>Por: {product.brand}</span>
-          <span className="flex items-center gap-1 text-slate-600 bg-slate-100/50 px-2 py-0.5 rounded-md border border-slate-200/50">
-            <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-            {product.rating} ({product.reviews})
+          <span className="flex flex-col gap-0.5">
+            <span>Por: {product.brand}</span>
+            {product.vendedorPhone && <span className="text-slate-400">Tel: {product.vendedorPhone}</span>}
+          </span>
+          <span className="flex flex-col items-end gap-0.5">
+            <span className="flex items-center gap-1 text-slate-600 bg-slate-100/50 px-2 py-0.5 rounded-md border border-slate-200/50">
+              <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+              {product.rating} ({product.reviews})
+            </span>
+            {product.createdAt && (
+               <span className="text-[10px] text-slate-400">
+                 {new Date(product.createdAt).toLocaleDateString()}
+               </span>
+            )}
           </span>
         </p>
-
         <p className="text-sm text-slate-600 line-clamp-2 mb-3 leading-relaxed opacity-90">
           {product.description}
         </p>
         
-        <div className="flex items-center gap-3 mb-4 text-xs font-semibold">
-          <div className="flex items-center gap-1 text-green-700 bg-green-50/80 border border-green-100/50 px-2.5 py-1 rounded-md backdrop-blur-sm">
-            <Package className="w-3 h-3" />
-            Stock: {product.stock || 0}
-          </div>
-          <div className="flex items-center gap-1 text-blue-700 bg-blue-50/80 border border-blue-100/50 px-2.5 py-1 rounded-md backdrop-blur-sm">
+        <div className="flex flex-wrap items-center gap-2 mb-4 text-xs font-semibold">
+          {product.stock === 0 ? (
+            <div className="flex items-center gap-1 text-red-700 bg-red-50/80 border border-red-100/50 px-2 py-1 rounded-md backdrop-blur-sm">
+              <Package className="w-3 h-3" />
+              Agotado
+            </div>
+          ) : (
+            <div className="flex items-center gap-1 text-green-700 bg-green-50/80 border border-green-100/50 px-2 py-1 rounded-md backdrop-blur-sm">
+              <Package className="w-3 h-3" />
+              Stock: {product.stock}
+            </div>
+          )}
+          <div className="flex items-center gap-1 text-blue-700 bg-blue-50/80 border border-blue-100/50 px-2 py-1 rounded-md backdrop-blur-sm">
             <TrendingUp className="w-3 h-3" />
             Vendidos: {product.sold || 0}
+          </div>
+          <div className="flex items-center gap-1 text-purple-700 bg-purple-50/80 border border-purple-100/50 px-2 py-1 rounded-md backdrop-blur-sm">
+            <Eye className="w-3 h-3" />
+            Vistas: {product.views || 0}
           </div>
         </div>
         

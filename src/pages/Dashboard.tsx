@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, Package, Upload, Settings, LogOut, 
-  BarChart3, Eye, DollarSign, TrendingUp, Edit, Trash2, Plus, Phone, Image as ImageIcon, X
+  BarChart3, Eye, DollarSign, TrendingUp, Edit, Trash2, Plus, Phone, Image as ImageIcon, X, PackageX, CheckCircle
 } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -147,6 +147,21 @@ export default function Dashboard() {
       toast.error('Error al eliminar');
     } else {
       toast.success('Producto eliminado');
+      fetchMyProducts();
+    }
+  };
+
+  const handleToggleStock = async (id: number, currentStock: number) => {
+    const newStock = currentStock > 0 ? 0 : 1;
+    const { error } = await supabase
+      .from('Productos')
+      .update({ Cantidad_dispon: newStock })
+      .eq('id', id);
+      
+    if (error) {
+      toast.error('Error al actualizar stock');
+    } else {
+      toast.success(newStock === 0 ? 'Producto marcado como agotado' : 'Producto restaurado a stock');
       fetchMyProducts();
     }
   };
@@ -353,8 +368,15 @@ export default function Dashboard() {
                               <ImageIcon className="w-12 h-12 opacity-30" />
                             </div>
                           )}
-                          <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-2.5 py-1 rounded-lg text-xs font-bold text-slate-700 shadow-sm">
-                            {product.Categoria}
+                          <div className="absolute top-3 right-3 flex flex-col gap-2 items-end">
+                            <div className="bg-white/90 backdrop-blur-sm px-2.5 py-1 rounded-lg text-xs font-bold text-slate-700 shadow-sm">
+                              {product.Categoria}
+                            </div>
+                            {product.Cantidad_dispon === 0 && (
+                              <div className="bg-red-500/90 backdrop-blur-sm px-2.5 py-1 rounded-lg text-xs font-bold text-white shadow-sm flex items-center gap-1">
+                                <PackageX className="w-3 h-3" /> Agotado
+                              </div>
+                            )}
                           </div>
                         </div>
                         <div className="p-5 flex-1 flex flex-col">
@@ -367,10 +389,17 @@ export default function Dashboard() {
                               <p className="text-xs text-slate-500">Stock: {product.Cantidad_dispon} • Ventas: {product.Cant_vendida || 0}</p>
                             </div>
                             <div className="flex gap-2">
-                              <button onClick={() => setEditingProduct(product)} className="w-8 h-8 rounded-full bg-slate-50 text-slate-600 flex items-center justify-center hover:bg-blue-50 hover:text-blue-600 transition-colors">
+                              <button 
+                                onClick={() => handleToggleStock(product.id, product.Cantidad_dispon)} 
+                                title={product.Cantidad_dispon === 0 ? "Restaurar stock" : "Marcar como agotado"}
+                                className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${product.Cantidad_dispon === 0 ? 'bg-amber-100 text-amber-600 hover:bg-amber-200' : 'bg-slate-50 text-slate-600 hover:bg-amber-50 hover:text-amber-600'}`}
+                              >
+                                {product.Cantidad_dispon === 0 ? <CheckCircle className="w-4 h-4" /> : <PackageX className="w-4 h-4" />}
+                              </button>
+                              <button onClick={() => setEditingProduct(product)} title="Editar" className="w-8 h-8 rounded-full bg-slate-50 text-slate-600 flex items-center justify-center hover:bg-blue-50 hover:text-blue-600 transition-colors">
                                 <Edit className="w-4 h-4" />
                               </button>
-                              <button onClick={() => handleDeleteProduct(product.id)} className="w-8 h-8 rounded-full bg-slate-50 text-slate-600 flex items-center justify-center hover:bg-red-50 hover:text-red-600 transition-colors">
+                              <button onClick={() => handleDeleteProduct(product.id)} title="Eliminar" className="w-8 h-8 rounded-full bg-slate-50 text-slate-600 flex items-center justify-center hover:bg-red-50 hover:text-red-600 transition-colors">
                                 <Trash2 className="w-4 h-4" />
                               </button>
                             </div>

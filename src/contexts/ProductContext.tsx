@@ -43,7 +43,9 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
           vendedorPhone: p['No Telefono'] || p['No Tel'] || '',
           dbId: p.id,
           stock: p.Cantidad_dispon || 0,
-          sold: p.Cant_vendida || 0
+          sold: p.Cant_vendida || 0,
+          views: p.Cant_vistas || 0,
+          createdAt: p.created_at || new Date().toISOString()
         }));
 
         setProducts(mappedProducts);
@@ -58,8 +60,8 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
     fetchProducts();
   }, []);
 
-  const trendingProducts = products.filter(p => p.category === 'trending');
-  const bestSellers = products.filter(p => p.category === 'bestseller');
+  const trendingProducts = [...products].sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 8);
+  const bestSellers = [...products].sort((a, b) => (b.sold || 0) - (a.sold || 0)).slice(0, 8);
 
   return (
     <ProductContext.Provider value={{ products, trendingProducts, bestSellers, loading, error }}>

@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Hero from '../components/Hero';
 import ProductCard from '../components/ProductCard';
+import ProductModal from '../components/ProductModal';
 import { categories, features, topSellers, testimonials } from '../data';
 import { 
   Smartphone, Shirt, Sofa, Laptop, ChevronRight, ChevronLeft, 
@@ -8,6 +9,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useProducts } from '../contexts/ProductContext';
+import { Product } from '../types';
 
 const IconMap: Record<string, React.ElementType> = {
   Smartphone, Shirt, Sofa, Laptop, ShieldCheck, Rocket, Lock, Award, MessageCircle
@@ -44,6 +46,16 @@ function SectionHeader({ title, actionText, actionLink }: { title: string, actio
 
 export default function Home() {
   const { products, trendingProducts, bestSellers, loading } = useProducts();
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [wishlist, setWishlist] = useState<Record<string, boolean>>({});
+
+  const toggleWishlist = (e: React.MouseEvent, product: Product) => {
+    e.stopPropagation();
+    setWishlist(prev => ({
+      ...prev,
+      [product.id]: !prev[product.id]
+    }));
+  };
 
   const availableCategories = React.useMemo(() => {
     const categoryCounts: Record<string, number> = {};
@@ -102,9 +114,9 @@ export default function Home() {
         )}
       </section>
 
-      {/* Productos en Tendencia */}
+      {/* Productos Más Vistos */}
       <section id="productos" className="py-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 bg-white">
-        <SectionHeader title="Productos en Tendencia" actionText="Ver todos" actionLink="/tienda" />
+        <SectionHeader title="Productos Más Vistos" actionText="Ver todos" actionLink="/tienda" />
         {loading ? (
           <div className="flex justify-center"><div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>
         ) : trendingProducts.length === 0 ? (
@@ -112,7 +124,13 @@ export default function Home() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
             {trendingProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
+              <ProductCard 
+                key={product.id} 
+                product={product} 
+                onClick={() => setSelectedProduct(product)}
+                isWishlisted={!!wishlist[product.id]}
+                onToggleWishlist={(e) => toggleWishlist(e, product)}
+              />
             ))}
           </div>
         )}
@@ -146,7 +164,13 @@ export default function Home() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
             {bestSellers.map((product) => (
-              <ProductCard key={product.id} product={product} />
+              <ProductCard 
+                key={product.id} 
+                product={product} 
+                onClick={() => setSelectedProduct(product)}
+                isWishlisted={!!wishlist[product.id]}
+                onToggleWishlist={(e) => toggleWishlist(e, product)}
+              />
             ))}
           </div>
         )}
@@ -237,6 +261,21 @@ export default function Home() {
           ))}
         </div>
       </section>
+
+      {selectedProduct && (
+        <ProductModal 
+          product={selectedProduct} 
+          isOpen={!!selectedProduct} 
+          onClose={() => setSelectedProduct(null)} 
+          isWishlisted={!!wishlist[selectedProduct.id]}
+          onToggleWishlist={() => {
+            setWishlist(prev => ({
+              ...prev,
+              [selectedProduct.id]: !prev[selectedProduct.id]
+            }));
+          }}
+        />
+      )}
     </main>
   );
 }

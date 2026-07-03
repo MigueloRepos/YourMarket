@@ -18,6 +18,8 @@ export interface Product {
   vendedorPhone?: string;
   stock?: number;
   sold?: number;
+  views?: number;
+  createdAt?: string;
 }
 
 export interface Category {
