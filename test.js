@@ -1,7 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
-const supabase = createClient('https://jeataizdssesnzssrvgy.supabase.co', process.env.VITE_SUPABASE_ANON_KEY);
-async function test() {
-  const { data, error } = await supabase.from('Usuarios').insert([{ "Usuario": "test_user", "Contraseña": "test_password" }]);
-  console.log(error);
-}
-test();
+import { allCountries } from 'country-telephone-data';
+import fs from 'fs';
+const out = allCountries.map(c => ({ name: c.name, dialCode: c.dialCode, iso2: c.iso2 }));
+fs.writeFileSync('src/countryCodes.json', JSON.stringify(out, null, 2));

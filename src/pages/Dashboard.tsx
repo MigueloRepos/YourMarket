@@ -27,6 +27,10 @@ export default function Dashboard() {
   const [newCategory, setNewCategory] = useState('');
   const [categories, setCategories] = useState<string[]>([]);
   const [editingProduct, setEditingProduct] = useState<any>(null);
+  
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [editingImageFile, setEditingImageFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -71,6 +75,40 @@ export default function Dashboard() {
       return;
     }
 
+    setIsUploading(true);
+
+    let imageUrl = newProduct.Product_url_images || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=800&auto=format&fit=crop';
+    
+    if (imageFile) {
+      const fileExt = imageFile.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const safeCategory = categoryToUse.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+      const bucketName = 'YourMarket';
+      const filePath = `Productos/Categorias/${safeCategory}/${fileName}`;
+
+      const { data: buckets } = await supabase.storage.listBuckets();
+      if (!buckets?.find(b => b.name === bucketName)) {
+        await supabase.storage.createBucket(bucketName, { public: true });
+      }
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from(bucketName)
+        .upload(filePath, imageFile);
+        
+      if (uploadError) {
+        toast.error(`Error al subir la imagen: ${uploadError.message}`);
+        console.error(uploadError);
+        setIsUploading(false);
+        return;
+      }
+      
+      const { data: { publicUrl } } = supabase.storage
+        .from(bucketName)
+        .getPublicUrl(filePath);
+        
+      imageUrl = publicUrl;
+    }
+
     const username = (user as any).Usuario || user?.email;
     const phone = (user as any)['No Tel'] || '';
 
@@ -83,12 +121,14 @@ export default function Dashboard() {
       Vendedor: username,
       'No Telefono': phone,
       Cant_vendida: 0,
-      Product_url_images: newProduct.Product_url_images || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=800&auto=format&fit=crop'
+      Product_url_images: imageUrl
     };
 
     const { error } = await supabase
       .from('Productos')
       .insert([productData]);
+
+    setIsUploading(false);
 
     if (error) {
       toast.error('Error al subir el producto');
@@ -104,6 +144,7 @@ export default function Dashboard() {
         Product_url_images: ''
       });
       setNewCategory('');
+      setImageFile(null);
       fetchMyProducts();
       fetchCategories();
       setActiveTab('mis_productos');
@@ -114,6 +155,39 @@ export default function Dashboard() {
     e.preventDefault();
     if (!editingProduct) return;
     
+    setIsUploading(true);
+    let imageUrl = editingProduct.Product_url_images;
+
+    if (editingImageFile) {
+      const fileExt = editingImageFile.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const safeCategory = editingProduct.Categoria.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+      const bucketName = 'YourMarket';
+      const filePath = `Productos/Categorias/${safeCategory}/${fileName}`;
+
+      const { data: buckets } = await supabase.storage.listBuckets();
+      if (!buckets?.find(b => b.name === bucketName)) {
+        await supabase.storage.createBucket(bucketName, { public: true });
+      }
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from(bucketName)
+        .upload(filePath, editingImageFile);
+        
+      if (uploadError) {
+        toast.error(`Error al subir la imagen: ${uploadError.message}`);
+        console.error(uploadError);
+        setIsUploading(false);
+        return;
+      }
+      
+      const { data: { publicUrl } } = supabase.storage
+        .from(bucketName)
+        .getPublicUrl(filePath);
+        
+      imageUrl = publicUrl;
+    }
+
     const { error } = await supabase
       .from('Productos')
       .update({
@@ -122,15 +196,18 @@ export default function Dashboard() {
         Precio: editingProduct.Precio,
         Categoria: editingProduct.Categoria,
         Cantidad_dispon: editingProduct.Cantidad_dispon,
-        Product_url_images: editingProduct.Product_url_images
+        Product_url_images: imageUrl
       })
       .eq('id', editingProduct.id);
       
+    setIsUploading(false);
+
     if (error) {
       toast.error('Error al actualizar');
     } else {
       toast.success('Producto actualizado');
       setEditingProduct(null);
+      setEditingImageFile(null);
       fetchMyProducts();
     }
   };
@@ -504,21 +581,25 @@ export default function Dashboard() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">URL de la Imagen</label>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Imagen del Producto (Opcional)</label>
                       <input 
-                        type="url" 
-                        value={newProduct.Product_url_images}
-                        onChange={e => setNewProduct({...newProduct, Product_url_images: e.target.value})}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
-                        placeholder="https://ejemplo.com/imagen.jpg"
+                        type="file" 
+                        accept="image/*"
+                        onChange={e => {
+                          if (e.target.files && e.target.files[0]) {
+                            setImageFile(e.target.files[0]);
+                            // Create preview URL if desired, but here we just store the file.
+                          }
+                        }}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" 
                       />
                     </div>
 
                   </div>
                   
                   <div className="mt-8 pt-6 border-t border-slate-100 flex justify-end">
-                    <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2.5 rounded-xl font-bold transition-colors">
-                      Publicar Producto
+                    <button disabled={isUploading} type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2.5 rounded-xl font-bold transition-colors disabled:opacity-50">
+                      {isUploading ? 'Publicando...' : 'Publicar Producto'}
                     </button>
                   </div>
                 </form>
@@ -633,22 +714,26 @@ export default function Dashboard() {
                       </div>
                       
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">URL de Imagen</label>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Nueva Imagen (Opcional)</label>
                         <input 
-                          type="text" 
-                          value={editingProduct.Product_url_images || ''}
-                          onChange={e => setEditingProduct({...editingProduct, Product_url_images: e.target.value})}
-                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                          type="file" 
+                          accept="image/*"
+                          onChange={e => {
+                            if (e.target.files && e.target.files[0]) {
+                              setEditingImageFile(e.target.files[0]);
+                            }
+                          }}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" 
                         />
                       </div>
                     </div>
                     
                     <div className="mt-6 pt-4 border-t border-slate-100 flex justify-end gap-3">
-                      <button type="button" onClick={() => setEditingProduct(null)} className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 rounded-xl transition-colors">
+                      <button type="button" onClick={() => { setEditingProduct(null); setEditingImageFile(null); }} className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 rounded-xl transition-colors">
                         Cancelar
                       </button>
-                      <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-xl text-sm font-medium transition-colors">
-                        Guardar Cambios
+                      <button disabled={isUploading} type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-xl text-sm font-medium transition-colors disabled:opacity-50">
+                        {isUploading ? 'Guardando...' : 'Guardar Cambios'}
                       </button>
                     </div>
                   </form>

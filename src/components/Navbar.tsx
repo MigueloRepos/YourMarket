@@ -13,7 +13,7 @@ export default function Navbar() {
         <div className="flex justify-between items-center h-20">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 cursor-pointer">
-            <img src="/logo_your_market.png" alt="MarketX Logo" className="w-[300px] h-[200px] object-contain" />
+            <img src="/logo_your_market.png" alt="Your Market Logo" className="h-10 md:h-14 w-auto object-contain" />
           </Link>
 
           {/* Desktop Links */}

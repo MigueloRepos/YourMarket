@@ -19,6 +19,7 @@ export interface Product {
   stock?: number;
   sold?: number;
   views?: number;
+  usuario?: string;
   createdAt?: string;
 }
 

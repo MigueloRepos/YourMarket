@@ -1,6 +1,7 @@
 import React from 'react';
 import { Product } from '../types';
 import { Heart, MessageCircle, Star, Package, TrendingUp, Eye } from 'lucide-react';
+import { useProducts } from '../contexts/ProductContext';
 
 interface ProductCardProps {
   key?: string | number;
@@ -11,9 +12,16 @@ interface ProductCardProps {
 }
 
 export default function ProductCard({ product, onClick, isWishlisted, onToggleWishlist }: ProductCardProps) {
+  const { incrementSold, incrementViews } = useProducts();
+
+  const handleCardClick = async () => {
+    await incrementViews(product);
+    if (onClick) onClick();
+  };
+
   return (
     <div 
-      onClick={onClick}
+      onClick={handleCardClick}
       className={`bg-white/60 backdrop-blur-xl rounded-[24px] p-4 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] transition-all duration-300 group border border-white/80 flex flex-col h-full relative cursor-pointer overflow-hidden ${product.isWide ? 'md:col-span-2 md:flex-row md:items-center gap-6' : ''}`}
     >
       {/* Decorative gradient blob for glass effect */}
@@ -70,8 +78,7 @@ export default function ProductCard({ product, onClick, isWishlisted, onToggleWi
         
         <p className="text-xs text-slate-500 mb-2 font-medium flex justify-between items-center">
           <span className="flex flex-col gap-0.5">
-            <span>Por: {product.brand}</span>
-            {product.vendedorPhone && <span className="text-slate-400">Tel: {product.vendedorPhone}</span>}
+            <span>Por: {product.usuario || product.brand}</span>
           </span>
           <span className="flex flex-col items-end gap-0.5">
             <span className="flex items-center gap-1 text-slate-600 bg-slate-100/50 px-2 py-0.5 rounded-md border border-slate-200/50">
@@ -119,19 +126,21 @@ export default function ProductCard({ product, onClick, isWishlisted, onToggleWi
             )}
           </div>
           
-          <button 
-            onClick={(e) => {
-              e.stopPropagation();
-              onClick?.();
-            }}
-            className={`bg-slate-900/5 hover:bg-slate-900 hover:text-white backdrop-blur-md text-slate-700 p-3 rounded-full transition-all duration-300 shadow-sm border border-slate-200/50 ${product.isWide ? 'px-6 flex items-center gap-2 rounded-2xl' : ''}`}
-          >
-            {product.isWide ? (
-              <span className="text-sm font-bold">Ver Detalles</span>
-            ) : (
-              <MessageCircle className="w-5 h-5" />
-            )}
-          </button>
+          <div className="flex gap-2">
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                onClick?.();
+              }}
+              className={`bg-slate-900/5 hover:bg-slate-900 hover:text-white backdrop-blur-md text-slate-700 p-3 rounded-full transition-all duration-300 shadow-sm border border-slate-200/50 ${product.isWide ? 'px-6 flex items-center gap-2 rounded-2xl' : ''}`}
+            >
+              {product.isWide ? (
+                <span className="text-sm font-bold">Ver Detalles</span>
+              ) : (
+                <MessageCircle className="w-5 h-5" />
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>

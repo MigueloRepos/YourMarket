@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Hero from '../components/Hero';
 import ProductCard from '../components/ProductCard';
 import ProductModal from '../components/ProductModal';
+import SkeletonProductCard from '../components/SkeletonProductCard';
 import { categories, features, topSellers, testimonials } from '../data';
 import { 
   Smartphone, Shirt, Sofa, Laptop, ChevronRight, ChevronLeft, 
@@ -88,7 +89,20 @@ export default function Home() {
       <section id="categorias" className="py-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <SectionHeader title="Categorías Destacadas" actionText="Ver todas las categorías" actionLink="/tienda" />
         {loading ? (
-          <div className="flex justify-center py-8"><div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="bg-slate-50 border border-transparent rounded-2xl p-6 flex items-center justify-between shadow-sm animate-pulse">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-xl bg-slate-200"></div>
+                  <div className="flex flex-col gap-2">
+                    <div className="w-24 h-5 bg-slate-200 rounded-md"></div>
+                    <div className="w-16 h-3 bg-slate-200 rounded-md"></div>
+                  </div>
+                </div>
+                <div className="w-5 h-5 bg-slate-200 rounded-full"></div>
+              </div>
+            ))}
+          </div>
         ) : availableCategories.length === 0 ? (
           <p className="text-center text-slate-500 py-8">No existen categorías disponibles aún.</p>
         ) : (
@@ -118,7 +132,11 @@ export default function Home() {
       <section id="productos" className="py-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 bg-white">
         <SectionHeader title="Productos Más Vistos" actionText="Ver todos" actionLink="/tienda" />
         {loading ? (
-          <div className="flex justify-center"><div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <SkeletonProductCard key={i} />
+            ))}
+          </div>
         ) : trendingProducts.length === 0 ? (
           <p className="text-center text-slate-500 py-8">No existen productos disponibles aún.</p>
         ) : (
@@ -158,7 +176,11 @@ export default function Home() {
       <section id="ofertas" className="py-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 bg-slate-50/50">
         <SectionHeader title="Productos Más Vendidos" actionText="Ver todos" actionLink="/tienda" />
         {loading ? (
-          <div className="flex justify-center"><div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <SkeletonProductCard key={i} />
+            ))}
+          </div>
         ) : bestSellers.length === 0 ? (
           <p className="text-center text-slate-500 py-8">No existen productos disponibles aún.</p>
         ) : (

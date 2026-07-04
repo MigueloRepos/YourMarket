@@ -46,6 +46,7 @@ export default function Store() {
     const searchLower = searchQuery.toLowerCase();
     const matchesSearch = p.name.toLowerCase().includes(searchLower) || 
                           p.brand.toLowerCase().includes(searchLower) ||
+                          (p.category && p.category.toLowerCase().includes(searchLower)) ||
                           (p.description && p.description.toLowerCase().includes(searchLower));
     const matchesPrice = p.price <= maxPrice;
     return matchesCategory && matchesSearch && matchesPrice;

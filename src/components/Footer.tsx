@@ -10,8 +10,7 @@ export default function Footer() {
           {/* Brand Col */}
           <div className="lg:col-span-2">
             <div className="flex items-center gap-2 mb-6">
-              <img src="/logo_your_market.png" alt="MarketX Logo" className="w-8 h-8 object-contain" />
-              <span className="text-xl font-bold text-slate-900 tracking-tight">MarketX</span>
+              <img src="/logo_your_market.png" alt="Your Market Logo" className="h-8 w-auto object-contain" />
             </div>
             <p className="text-slate-500 text-sm leading-relaxed mb-6 pr-4">
               El marketplace moderno donde compras y vendes en un solo lugar, con envíos seguros y rápidos.
@@ -90,7 +89,7 @@ export default function Footer() {
 
         <div className="border-t border-slate-100 pt-8 flex flex-col md:flex-row items-center justify-center text-center">
           <p className="text-slate-400 text-sm">
-            © {new Date().getFullYear()} MarketX. Todos los derechos reservados.
+            © {new Date().getFullYear()} Your Market. Todos los derechos reservados.
           </p>
         </div>
       </div>

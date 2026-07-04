@@ -4,11 +4,15 @@ import { useAuth } from '../contexts/AuthContext';
 import { Mail, Lock, LogIn, Chrome, ArrowRight, User, Phone } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { supabase } from '../lib/supabase';
+import countryCodes from '../countryCodes.json';
 
 export default function Login() {
+  const [identifier, setIdentifier] = useState('');
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [phone, setPhone] = useState('');
+  const [phoneCode, setPhoneCode] = useState('+52');
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const { signInWithGoogle, setCustomUser } = useAuth();
@@ -16,12 +20,18 @@ export default function Login() {
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password || (!isLogin && !phone)) {
-      toast.error('Por favor, completa todos los campos requeridos');
-      return;
-    }
-    
-    if (!isLogin) {
+
+    if (isLogin) {
+      if (!identifier || !password) {
+        toast.error('Por favor, completa todos los campos requeridos');
+        return;
+      }
+    } else {
+      if (!username || !email || !password || !phone) {
+        toast.error('Por favor, completa todos los campos requeridos');
+        return;
+      }
+      
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) {
         toast.error('Por favor, ingresa un correo electrónico válido');
@@ -46,7 +56,7 @@ export default function Login() {
         const { data, error } = await supabase
           .from('Usuarios')
           .select('*')
-          .eq('Usuario', email)
+          .or(`Usuario.eq.${identifier},Correo_e.eq.${identifier}`)
           .eq('Contraseña', password)
           .single();
 
@@ -58,7 +68,7 @@ export default function Login() {
         await supabase
           .from('Usuarios')
           .update({ Fecha_ult_acc: new Date().toISOString() })
-          .eq('Usuario', email);
+          .eq('id', data.id);
         
         setCustomUser({ id: data.id?.toString() || data.Usuario, Usuario: data.Usuario, ...data });
         toast.success('Login exitoso');
@@ -67,24 +77,23 @@ export default function Login() {
         const { data: existingUser } = await supabase
           .from('Usuarios')
           .select('*')
-          .eq('Usuario', email)
-          .single();
+          .or(`Usuario.eq.${username},Correo_e.eq.${email}`)
+          .maybeSingle();
           
         if (existingUser) {
-          throw new Error('El usuario ya existe');
+          throw new Error('El usuario o correo electrónico ya existe');
         }
 
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from('Usuarios')
           .insert([{ 
-            Usuario: email, 
-            Contraseña: password,
-            'No Tel': phone,
+             Usuario: username,
+             Correo_e: email,
+             Contraseña: password,
+            'No Tel': `${phoneCode}${phone}`,
             Fecha_Regis: new Date().toISOString(),
             Fecha_ult_acc: new Date().toISOString()
-          }])
-          .select()
-          .single();
+          }]);
 
         if (error) {
           if (error.code === '42501') {
@@ -93,8 +102,8 @@ export default function Login() {
           throw error;
         }
 
-        // The user might be able to insert but not select depending on RLS. If data is null but no error:
-        const userData = data || { id: Date.now().toString(), Usuario: email, 'No Tel': phone };
+        // The user might be able to insert but not select depending on RLS.
+        const userData = { id: Date.now().toString(), Usuario: username, Correo_e: email, 'No Tel': `${phoneCode}${phone}` };
         setCustomUser({ id: userData.id?.toString() || userData.Usuario, Usuario: userData.Usuario, ...userData });
         toast.success('Cuenta creada exitosamente');
         navigate('/dashboard');
@@ -133,38 +142,88 @@ export default function Login() {
 
         <form className="mt-8 space-y-6" onSubmit={handleEmailAuth}>
           <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Usuario / Correo Electrónico</label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <User className="h-5 w-5 text-slate-400" />
-                </div>
-                <input
-                  type="text"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="block w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all sm:text-sm bg-slate-50 focus:bg-white"
-                  placeholder="Tu usuario o correo"
-                />
-              </div>
-            </div>
-            
-            {!isLogin && (
+            {isLogin ? (
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">No. Teléfono</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Usuario / Correo Electrónico</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Phone className="h-5 w-5 text-slate-400" />
+                    <User className="h-5 w-5 text-slate-400" />
                   </div>
                   <input
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    type="text"
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
                     className="block w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all sm:text-sm bg-slate-50 focus:bg-white"
-                    placeholder="Tu número de teléfono"
+                    placeholder="Tu usuario o correo"
                   />
                 </div>
               </div>
+            ) : (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Nombre de Usuario</label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <User className="h-5 w-5 text-slate-400" />
+                    </div>
+                    <input
+                      type="text"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      className="block w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all sm:text-sm bg-slate-50 focus:bg-white"
+                      placeholder="Ej: juanperez123"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Correo Electrónico</label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Mail className="h-5 w-5 text-slate-400" />
+                    </div>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="block w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all sm:text-sm bg-slate-50 focus:bg-white"
+                      placeholder="tu@correo.com"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">No. Teléfono</label>
+                  <div className="flex gap-2">
+                    <div className="relative w-1/3">
+                      <select
+                        value={phoneCode}
+                        onChange={(e) => setPhoneCode(e.target.value)}
+                        className="block w-full pl-3 pr-8 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all sm:text-sm bg-slate-50 focus:bg-white appearance-none"
+                      >
+                        {countryCodes.map((country: any) => (
+                          <option key={country.iso2} value={`+${country.dialCode}`}>
+                            {country.iso2.toUpperCase()} (+{country.dialCode})
+                          </option>
+                        ))}
+                      </select>
+                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-400">
+                        <svg className="h-4 w-4 fill-current" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                      </div>
+                    </div>
+                    <div className="relative w-2/3">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Phone className="h-5 w-5 text-slate-400" />
+                      </div>
+                      <input
+                        type="tel"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        className="block w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all sm:text-sm bg-slate-50 focus:bg-white"
+                        placeholder="Tu número de teléfono"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </>
             )}
             
             <div>

@@ -125,6 +125,6 @@ export const topSellers: Seller[] = [
 
 export const testimonials: Testimonial[] = [
   { id: 'ts1', text: 'Excelente plataforma, encontré todo lo que necesitaba a precios increíbles. Muy recomendada.', name: 'María Antúnez', avatar: 'https://i.pravatar.cc/150?u=maria', rating: 5 },
-  { id: 'ts2', text: 'Vender en MarketX es muy fácil, he aumentado mis ventas considerablemente.', name: 'Carlos Mendoza', avatar: 'https://i.pravatar.cc/150?u=carlos', rating: 5 },
+  { id: 'ts2', text: 'Vender en Your Market es muy fácil, he aumentado mis ventas considerablemente.', name: 'Carlos Mendoza', avatar: 'https://i.pravatar.cc/150?u=carlos', rating: 5 },
   { id: 'ts3', text: 'La mejor experiencia de compra online, envíos rápidos y productos de calidad.', name: 'Ana Rodríguez', avatar: 'https://i.pravatar.cc/150?u=ana', rating: 5 },
 ];

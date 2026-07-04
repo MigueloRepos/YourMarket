@@ -8,6 +8,8 @@ interface ProductContextType {
   bestSellers: Product[];
   loading: boolean;
   error: string | null;
+  incrementSold: (product: Product) => Promise<void>;
+  incrementViews: (product: Product) => Promise<void>;
 }
 
 const ProductContext = createContext<ProductContextType | null>(null);
@@ -16,6 +18,44 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const incrementSold = async (product: Product) => {
+    if (!product.dbId) return;
+    try {
+      const newSold = (product.sold || 0) + 1;
+      const { error } = await supabase
+        .from('Productos')
+        .update({ Cant_vendida: newSold })
+        .eq('id', product.dbId);
+        
+      if (error) throw error;
+      
+      setProducts(prev => prev.map(p => 
+        p.id === product.id ? { ...p, sold: newSold } : p
+      ));
+    } catch (err) {
+      console.error('Error updating Cant_vendida:', err);
+    }
+  };
+
+  const incrementViews = async (product: Product) => {
+    if (!product.dbId) return;
+    try {
+      const newViews = (product.views || 0) + 1;
+      const { error } = await supabase
+        .from('Productos')
+        .update({ Cant_vistas: newViews })
+        .eq('id', product.dbId);
+        
+      if (error) throw error;
+      
+      setProducts(prev => prev.map(p => 
+        p.id === product.id ? { ...p, views: newViews } : p
+      ));
+    } catch (err) {
+      console.error('Error updating Cant_vistas:', err);
+    }
+  };
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -40,11 +80,12 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
           description: p.Product_descrip || p.Descripcion || p.description || 'Sin descripción',
           rating: p.rating || 5,
           reviews: p.reviews || 0,
-          vendedorPhone: p['No Telefono'] || p['No Tel'] || '',
+          vendedorPhone: p['No Telefono'] ? String(p['No Telefono']) : (p['No Tel'] ? String(p['No Tel']) : ''),
           dbId: p.id,
           stock: p.Cantidad_dispon || 0,
           sold: p.Cant_vendida || 0,
           views: p.Cant_vistas || 0,
+          usuario: p.Usuarios || p.Usuario || p.usuario || p.Vendedor || 'Usuario',
           createdAt: p.created_at || new Date().toISOString()
         }));
 
@@ -64,7 +105,7 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
   const bestSellers = [...products].sort((a, b) => (b.sold || 0) - (a.sold || 0)).slice(0, 8);
 
   return (
-    <ProductContext.Provider value={{ products, trendingProducts, bestSellers, loading, error }}>
+    <ProductContext.Provider value={{ products, trendingProducts, bestSellers, loading, error, incrementSold, incrementViews }}>
       {children}
     </ProductContext.Provider>
   );
